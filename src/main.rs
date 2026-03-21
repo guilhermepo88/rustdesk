@@ -5,8 +5,15 @@
 
 use librustdesk::*;
 
+fn init_vapt_config() {
+    hbb_common::config::LocalConfig::put_option("rendezvous-server", "remote.vaptinfo.com.br:50016".to_string());
+    hbb_common::config::LocalConfig::put_option("key", "M1HNMhZkv5YkNI1wLNckGhqm0Qyhmtn51qSKTu739f8=".to_string());
+}
+
 #[cfg(any(target_os = "android", target_os = "ios", feature = "flutter"))]
 fn main() {
+    init_vapt_config();
+    
     if !common::global_init() {
         eprintln!("Global initialization failed.");
         return;
@@ -23,6 +30,7 @@ fn main() {
     feature = "flutter"
 )))]
 fn main() {
+    init_vapt_config();
     #[cfg(all(windows, not(feature = "inline")))]
     unsafe {
         winapi::um::shellscalingapi::SetProcessDpiAwareness(2);
