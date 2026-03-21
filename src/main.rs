@@ -7,6 +7,7 @@ use librustdesk::*;
 
 fn init_vapt_config() {
     hbb_common::config::LocalConfig::put_option("rendezvous-server", "remote.vaptinfo.com.br:50016".to_string());
+    hbb_common::config::LocalConfig::put_option("relay-server", "remote.vaptinfo.com.br:50017".to_string()); // ADICIONE ESTA
     hbb_common::config::LocalConfig::put_option("key", "M1HNMhZkv5YkNI1wLNckGhqm0Qyhmtn51qSKTu739f8=".to_string());
 }
 
