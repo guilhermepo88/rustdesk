@@ -30,7 +30,7 @@ fn main() {
     feature = "flutter"
 )))]
 fn main() {
-    init_vapt_config();
+    init_vapt_config(); // Esta é a linha que você vai adicionar aqui
     #[cfg(all(windows, not(feature = "inline")))]
     unsafe {
         winapi::um::shellscalingapi::SetProcessDpiAwareness(2);
