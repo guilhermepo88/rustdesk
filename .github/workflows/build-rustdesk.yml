@@ -11,6 +11,8 @@ jobs:
       RUST_VERSION: "1.75"
       FLUTTER_VERSION: "3.24.5"
       RUSTFLAGS: "-C target-feature=+crt-static"
+      # Commit recente e estável do vcpkg (Janeiro 2025)
+      VCPKG_COMMIT: "a34c873a9717a888f58dc05268dea15592c2f822"
 
     steps:
       # ─────────────────────────────────────────
@@ -28,7 +30,7 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Install LLVM 15
-        uses: KyleMayes/install-llvm-action@v1
+        uses: KyleMayes/install-llvm-action@v2
         with:
           version: "15.0.6"
 
@@ -37,7 +39,6 @@ jobs:
         with:
           toolchain: ${{ env.RUST_VERSION }}
           targets: x86_64-pc-windows-msvc
-          # rustfmt necessario para geracao de codigo bridge
           components: rustfmt
 
       - name: Install Flutter ${{ env.FLUTTER_VERSION }}
@@ -74,26 +75,45 @@ jobs:
           key: ${{ runner.os }}-flutter-${{ env.FLUTTER_VERSION }}-${{ hashFiles('flutter/pubspec.yaml') }}
           restore-keys: ${{ runner.os }}-flutter-${{ env.FLUTTER_VERSION }}-
 
-      - name: Cache vcpkg
+      - name: Cache vcpkg downloads
         uses: actions/cache@v4
         with:
-          path: ${{ github.workspace }}/vcpkg_installed
-          key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
-          restore-keys: ${{ runner.os }}-vcpkg-
+          path: |
+            ${{ github.workspace }}/vcpkg/downloads
+            ${{ github.workspace }}/vcpkg/installed
+          key: ${{ runner.os }}-vcpkg-${{ env.VCPKG_COMMIT }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            ${{ runner.os }}-vcpkg-${{ env.VCPKG_COMMIT }}-
+            ${{ runner.os }}-vcpkg-
 
       # ─────────────────────────────────────────
-      # 4. DEPENDENCIAS NATIVAS (vcpkg)
+      # 4. VCPKG — clone manual com commit fixo
+      # Mais confiável que lukka/run-vcpkg para
+      # evitar falhas de portfile desatualizados
       # ─────────────────────────────────────────
       - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgGitCommitId: 120deac3062162151622ca4860575a33844ba10b
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "vcpkg")) {
+            git clone https://github.com/microsoft/vcpkg.git
+          }
+          cd vcpkg
+          git fetch origin
+          git checkout $env:VCPKG_COMMIT
+          .\bootstrap-vcpkg.bat -disableMetrics
+          echo "VCPKG_ROOT=${{ github.workspace }}\vcpkg" >> $env:GITHUB_ENV
 
       - name: Install native dependencies via vcpkg
         shell: pwsh
         run: |
-          $env:VCPKG_DEFAULT_HOST_TRIPLET = "x64-windows-static"
-          & "$env:VCPKG_ROOT\vcpkg.exe" install --triplet x64-windows-static
+          $env:VCPKG_DEFAULT_TRIPLET = "x64-windows-static"
+          & "$env:VCPKG_ROOT\vcpkg.exe" install `
+            openssl:x64-windows-static `
+            libvpx:x64-windows-static `
+            libyuv:x64-windows-static `
+            opus:x64-windows-static `
+            --triplet x64-windows-static `
+            --no-print-usage
 
       # ─────────────────────────────────────────
       # 5. FLUTTER DEPENDENCIES
@@ -106,8 +126,6 @@ jobs:
 
       # ─────────────────────────────────────────
       # 6. BUILD
-      # Sem --hwcodec: evita erro de FFmpeg/MFX headers ausentes
-      # Codec de software funciona normalmente para testes
       # ─────────────────────────────────────────
       - name: Build RustDesk (Flutter, sem hwcodec)
         shell: pwsh
@@ -130,12 +148,15 @@ jobs:
           Write-Host "=== target/release ==="
           if (Test-Path "target/release") {
             Get-ChildItem "target/release" -Include "*.exe","*.msi" | Select-Object FullName
+          } else {
+            Write-Host "Pasta nao encontrada"
           }
 
       # ─────────────────────────────────────────
       # 8. UPLOAD ARTEFATOS
       # ─────────────────────────────────────────
       - name: Upload installer artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: rustdesk-windows-installer
