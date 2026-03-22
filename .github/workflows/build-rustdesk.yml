@@ -37,6 +37,8 @@ jobs:
         with:
           toolchain: ${{ env.RUST_VERSION }}
           targets: x86_64-pc-windows-msvc
+          # rustfmt necessario para geracao de codigo bridge
+          components: rustfmt
 
       - name: Install Flutter ${{ env.FLUTTER_VERSION }}
         uses: subosito/flutter-action@v2
@@ -45,7 +47,7 @@ jobs:
           channel: stable
 
       # ─────────────────────────────────────────
-      # 3. CACHE (economiza 30-50 min por run)
+      # 3. CACHE
       # ─────────────────────────────────────────
       - name: Cache Cargo registry
         uses: actions/cache@v4
@@ -54,16 +56,14 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-registry-
+          restore-keys: ${{ runner.os }}-cargo-registry-
 
       - name: Cache Cargo build
         uses: actions/cache@v4
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-build-
+          restore-keys: ${{ runner.os }}-cargo-build-
 
       - name: Cache Flutter pub
         uses: actions/cache@v4
@@ -72,19 +72,17 @@ jobs:
             ~/.pub-cache
             flutter/.dart_tool
           key: ${{ runner.os }}-flutter-${{ env.FLUTTER_VERSION }}-${{ hashFiles('flutter/pubspec.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-flutter-${{ env.FLUTTER_VERSION }}-
+          restore-keys: ${{ runner.os }}-flutter-${{ env.FLUTTER_VERSION }}-
 
       - name: Cache vcpkg
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/vcpkg_installed
           key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
-          restore-keys: |
-            ${{ runner.os }}-vcpkg-
+          restore-keys: ${{ runner.os }}-vcpkg-
 
       # ─────────────────────────────────────────
-      # 4. DEPENDÊNCIAS NATIVAS (vcpkg)
+      # 4. DEPENDENCIAS NATIVAS (vcpkg)
       # ─────────────────────────────────────────
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
@@ -107,27 +105,29 @@ jobs:
           flutter pub get
 
       # ─────────────────────────────────────────
-      # 6. BUILD (Flutter UI + instalador)
+      # 6. BUILD
+      # Sem --hwcodec: evita erro de FFmpeg/MFX headers ausentes
+      # Codec de software funciona normalmente para testes
       # ─────────────────────────────────────────
-      - name: Build RustDesk (Flutter + installer)
+      - name: Build RustDesk (Flutter, sem hwcodec)
         shell: pwsh
         run: |
-          python build.py --flutter --hwcodec
+          python build.py --flutter --skip-portable-pack
 
       # ─────────────────────────────────────────
-      # 7. VERIFICAR OUTPUT (debug se falhar)
+      # 7. VERIFICAR OUTPUT
       # ─────────────────────────────────────────
       - name: List build output
         if: always()
         shell: pwsh
         run: |
-          Write-Host "=== flutter/build/windows ===" 
+          Write-Host "=== flutter/build/windows ==="
           if (Test-Path "flutter/build/windows") {
             Get-ChildItem -Recurse "flutter/build/windows" -Include "*.exe","*.msi" | Select-Object FullName
           } else {
             Write-Host "Pasta nao encontrada"
           }
-          Write-Host "=== target/release ===" 
+          Write-Host "=== target/release ==="
           if (Test-Path "target/release") {
             Get-ChildItem "target/release" -Include "*.exe","*.msi" | Select-Object FullName
           }
