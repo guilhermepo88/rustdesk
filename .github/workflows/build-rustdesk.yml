@@ -106,12 +106,10 @@ jobs:
       - name: Install native dependencies via vcpkg
         shell: pwsh
         run: |
+          # Manifest mode: o vcpkg.json do RustDesk define os pacotes
+          # Nao passar nomes de pacotes — so o triplet
           $env:VCPKG_DEFAULT_TRIPLET = "x64-windows-static"
           & "$env:VCPKG_ROOT\vcpkg.exe" install `
-            openssl:x64-windows-static `
-            libvpx:x64-windows-static `
-            libyuv:x64-windows-static `
-            opus:x64-windows-static `
             --triplet x64-windows-static `
             --no-print-usage
 
