@@ -39,7 +39,12 @@ jobs:
         shell: pwsh
         run: |
           $env:VCPKG_DEFAULT_HOST_TRIPLET="x64-windows-static"
-          & "$env:VCPKG_ROOT\vcpkg.exe" install
+          & "$env:VCPKG_ROOT\vcpkg.exe" install `
+            ffmpeg[avcodec,avformat,avutil,swscale,swresample] `
+            libvpx `
+            aom `
+            opus `
+            --triplet x64-windows-static
 
       - name: Build RustDesk
         shell: pwsh
