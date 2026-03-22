@@ -16,6 +16,10 @@ jobs:
         with:
           submodules: recursive
 
+      # Resolve o problema do cl.exe não achar os headers/libs
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Install LLVM
         uses: KyleMayes/install-llvm-action@v1
         with:
@@ -38,6 +42,7 @@ jobs:
         with:
           vcpkgGitCommitId: 120deac3062162151622ca4860575a33844ba10b
 
+      # Respeita o vcpkg.json do projeto original
       - name: Install dependencies (manifest mode)
         shell: pwsh
         run: |
