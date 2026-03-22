@@ -168,28 +168,30 @@ class ColorThemeExtension extends ThemeExtension<ColorThemeExtension> {
   final Color? toastText;
   final Color? divider;
 
+  // CONFIGURAÇÃO VAPT - TEMA CLARO
   static final light = ColorThemeExtension(
-    border: Color(0xFF0A1122),
-    border2: Color(0xFFBBBBBB),
+    border: const Color(0xFF0A1122), // Azul Marinho VAPT
+    border2: const Color(0xFFBBBBBB),
     border3: Colors.black26,
-    highlight: Color(0xFFE5E5E5),
+    highlight: const Color(0xFFF5F5F5), // Fundo acinzentado claro
     drag_indicator: Colors.grey[800],
     shadow: Colors.black,
-    errorBannerBg: Color(0xFFFDEEEB),
+    errorBannerBg: const Color(0xFFFDEEEB),
     me: Colors.green,
     toastBg: Colors.black.withOpacity(0.6),
     toastText: Colors.white,
     divider: Colors.black38,
   );
 
+  // CONFIGURAÇÃO VAPT - TEMA ESCURO
   static final dark = ColorThemeExtension(
-    border: Color(0xFF0A1122),
-    border2: Color(0xFFE5E5E5),
+    border: const Color(0xFF0A1122), // Mantém Azul Marinho VAPT
+    border2: const Color(0xFFE5E5E5),
     border3: Colors.white24,
-    highlight: Color(0xFF0056B3),
+    highlight: const Color(0xFF0056B3), // Destaque em Azul Royal
     drag_indicator: Colors.grey,
     shadow: Colors.grey,
-    errorBannerBg: Color(0xFF470F2D),
+    errorBannerBg: const Color(0xFF470F2D),
     me: Colors.greenAccent,
     toastBg: Colors.white.withOpacity(0.6),
     toastText: Colors.black,
@@ -197,7 +199,7 @@ class ColorThemeExtension extends ThemeExtension<ColorThemeExtension> {
   );
 
   @override
-  ThemeExtension<ColorThemeExtension> copyWith({
+  ColorThemeExtension copyWith({
     Color? border,
     Color? border2,
     Color? border3,
@@ -226,11 +228,8 @@ class ColorThemeExtension extends ThemeExtension<ColorThemeExtension> {
   }
 
   @override
-  ThemeExtension<ColorThemeExtension> lerp(
-      ThemeExtension<ColorThemeExtension>? other, double t) {
-    if (other is! ColorThemeExtension) {
-      return this;
-    }
+  ColorThemeExtension lerp(ThemeExtension<ColorThemeExtension>? other, double t) {
+    if (other is! ColorThemeExtension) return this;
     return ColorThemeExtension(
       border: Color.lerp(border, other.border, t),
       border2: Color.lerp(border2, other.border2, t),
@@ -238,11 +237,11 @@ class ColorThemeExtension extends ThemeExtension<ColorThemeExtension> {
       highlight: Color.lerp(highlight, other.highlight, t),
       drag_indicator: Color.lerp(drag_indicator, other.drag_indicator, t),
       shadow: Color.lerp(shadow, other.shadow, t),
-      errorBannerBg: Color.lerp(shadow, other.errorBannerBg, t),
-      me: Color.lerp(shadow, other.me, t),
-      toastBg: Color.lerp(shadow, other.toastBg, t),
-      toastText: Color.lerp(shadow, other.toastText, t),
-      divider: Color.lerp(shadow, other.divider, t),
+      errorBannerBg: Color.lerp(errorBannerBg, other.errorBannerBg, t),
+      me: Color.lerp(me, other.me, t),
+      toastBg: Color.lerp(toastBg, other.toastBg, t),
+      toastText: Color.lerp(toastText, other.toastText, t),
+      divider: Color.lerp(divider, other.divider, t),
     );
   }
 }
@@ -251,16 +250,16 @@ class MyTheme {
   MyTheme._();
 
   static const Color grayBg = Color(0xFFEFEFF2);
-  static const Color accent = Color(0xFF0071FF);
-  static const Color accent50 = Color(0x770071FF);
-  static const Color accent80 = Color(0xAA0071FF);
+  static const Color accent = Color(0xFF0A1122); // AZUL MARINHO VAPT
+  static const Color accent50 = Color(0x770A1122);
+  static const Color accent80 = Color(0xAA0A1122);
   static const Color canvasColor = Color(0xFF212121);
   static const Color border = Color(0xFFCCCCCC);
-  static const Color idColor = Color(0xFF00B6F0);
+  static const Color idColor = Color(0xFF0A1122); // IDs em Marinho
   static const Color darkGray = Color.fromARGB(255, 148, 148, 148);
   static const Color cmIdColor = Color(0xFF21790B);
   static const Color dark = Colors.black87;
-  static const Color button = Color(0xFF2C8CFF);
+  static const Color button = Color(0xFF0A1122); // BOTÕES MARINHO
   static const Color hoverBorder = Color(0xFF999999);
 
   // ListTile
