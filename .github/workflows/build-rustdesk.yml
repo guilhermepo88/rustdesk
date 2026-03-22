@@ -11,7 +11,6 @@ jobs:
       RUST_VERSION: "1.75"
       FLUTTER_VERSION: "3.24.5"
       RUSTFLAGS: "-C target-feature=+crt-static"
-      # Commit recente e estável do vcpkg (Janeiro 2025)
       VCPKG_COMMIT: "a34c873a9717a888f58dc05268dea15592c2f822"
 
     steps:
@@ -75,21 +74,17 @@ jobs:
           key: ${{ runner.os }}-flutter-${{ env.FLUTTER_VERSION }}-${{ hashFiles('flutter/pubspec.yaml') }}
           restore-keys: ${{ runner.os }}-flutter-${{ env.FLUTTER_VERSION }}-
 
-      - name: Cache vcpkg downloads
+      - name: Cache vcpkg
         uses: actions/cache@v4
         with:
           path: |
             ${{ github.workspace }}/vcpkg/downloads
             ${{ github.workspace }}/vcpkg/installed
-          key: ${{ runner.os }}-vcpkg-${{ env.VCPKG_COMMIT }}-${{ hashFiles('vcpkg.json') }}
-          restore-keys: |
-            ${{ runner.os }}-vcpkg-${{ env.VCPKG_COMMIT }}-
-            ${{ runner.os }}-vcpkg-
+          key: ${{ runner.os }}-vcpkg-${{ env.VCPKG_COMMIT }}
+          restore-keys: ${{ runner.os }}-vcpkg-
 
       # ─────────────────────────────────────────
-      # 4. VCPKG — clone manual com commit fixo
-      # Mais confiável que lukka/run-vcpkg para
-      # evitar falhas de portfile desatualizados
+      # 4. VCPKG SETUP
       # ─────────────────────────────────────────
       - name: Setup vcpkg
         shell: pwsh
@@ -103,11 +98,33 @@ jobs:
           .\bootstrap-vcpkg.bat -disableMetrics
           echo "VCPKG_ROOT=${{ github.workspace }}\vcpkg" >> $env:GITHUB_ENV
 
+      # ─────────────────────────────────────────
+      # 4b. SOBRESCREVER vcpkg.json
+      # O vcpkg.json original puxa ffmpeg+aom que
+      # quebra o build. Como nao usamos --hwcodec,
+      # so precisamos das 4 libs abaixo.
+      # ─────────────────────────────────────────
+      - name: Override vcpkg.json (remove ffmpeg/aom)
+        shell: pwsh
+        run: |
+          @"
+          {
+            "name": "rustdesk",
+            "version": "0.0.1",
+            "dependencies": [
+              { "name": "libvpx",  "triplet": "x64-windows-static" },
+              { "name": "libyuv",  "triplet": "x64-windows-static" },
+              { "name": "opus",    "triplet": "x64-windows-static" },
+              { "name": "openssl", "triplet": "x64-windows-static" }
+            ]
+          }
+          "@ | Set-Content -Path vcpkg.json -Encoding UTF8
+          Write-Host "vcpkg.json atualizado:"
+          Get-Content vcpkg.json
+
       - name: Install native dependencies via vcpkg
         shell: pwsh
         run: |
-          # Manifest mode: o vcpkg.json do RustDesk define os pacotes
-          # Nao passar nomes de pacotes — so o triplet
           $env:VCPKG_DEFAULT_TRIPLET = "x64-windows-static"
           & "$env:VCPKG_ROOT\vcpkg.exe" install `
             --triplet x64-windows-static `
