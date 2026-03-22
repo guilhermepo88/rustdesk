@@ -80,11 +80,12 @@ jobs:
           path: |
             ${{ github.workspace }}/vcpkg/downloads
             ${{ github.workspace }}/vcpkg/installed
-          key: ${{ runner.os }}-vcpkg-${{ env.VCPKG_COMMIT }}
-          restore-keys: ${{ runner.os }}-vcpkg-
+          key: ${{ runner.os }}-vcpkg-classic-${{ env.VCPKG_COMMIT }}
+          restore-keys: ${{ runner.os }}-vcpkg-classic-
 
       # ─────────────────────────────────────────
-      # 4. VCPKG SETUP
+      # 4. VCPKG — modo classic (exatamente como
+      # o README oficial do RustDesk instrui)
       # ─────────────────────────────────────────
       - name: Setup vcpkg
         shell: pwsh
@@ -98,37 +99,31 @@ jobs:
           .\bootstrap-vcpkg.bat -disableMetrics
           echo "VCPKG_ROOT=${{ github.workspace }}\vcpkg" >> $env:GITHUB_ENV
 
-      # ─────────────────────────────────────────
-      # 4b. SOBRESCREVER vcpkg.json
-      # O vcpkg.json original puxa ffmpeg+aom que
-      # quebra o build. Como nao usamos --hwcodec,
-      # so precisamos das 4 libs abaixo.
-      # ─────────────────────────────────────────
-      - name: Override vcpkg.json (remove ffmpeg/aom)
+      # Instala exatamente os pacotes listados no README oficial:
+      # https://github.com/rustdesk/rustdesk#windows
+      # Usa --classic para ignorar o vcpkg.json do projeto
+      - name: Install dependencies via vcpkg (classic mode)
         shell: pwsh
         run: |
-          @"
-          {
-            "name": "rustdesk",
-            "version": "0.0.1",
-            "dependencies": [
-              "libvpx",
-              "libyuv",
-              "opus",
-              "openssl"
-            ]
-          }
-          "@ | Set-Content -Path vcpkg.json -Encoding UTF8
-          Write-Host "vcpkg.json atualizado:"
-          Get-Content vcpkg.json
+          & "${{ github.workspace }}\vcpkg\vcpkg.exe" install `
+            libvpx:x64-windows-static `
+            libyuv:x64-windows-static `
+            opus:x64-windows-static `
+            aom:x64-windows-static `
+            --classic
 
-      - name: Install native dependencies via vcpkg
+      # Exportar paths para o compilador achar os headers
+      - name: Export vcpkg paths
         shell: pwsh
         run: |
-          $env:VCPKG_DEFAULT_TRIPLET = "x64-windows-static"
-          & "$env:VCPKG_ROOT\vcpkg.exe" install `
-            --triplet x64-windows-static `
-            --no-print-usage
+          $inc = "${{ github.workspace }}\vcpkg\installed\x64-windows-static\include"
+          $lib = "${{ github.workspace }}\vcpkg\installed\x64-windows-static\lib"
+          echo "VCPKG_INCLUDE_DIR=$inc"    >> $env:GITHUB_ENV
+          echo "VCPKG_LIB_DIR=$lib"        >> $env:GITHUB_ENV
+          echo "OPUS_INCLUDE_DIR=$inc"     >> $env:GITHUB_ENV
+          echo "OPUS_LIB_DIR=$lib"         >> $env:GITHUB_ENV
+          echo "INCLUDE=$inc;$env:INCLUDE" >> $env:GITHUB_ENV
+          echo "LIB=$lib;$env:LIB"         >> $env:GITHUB_ENV
 
       # ─────────────────────────────────────────
       # 5. FLUTTER DEPENDENCIES
