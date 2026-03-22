@@ -1,0 +1,146 @@
+name: Build RustDesk Windows Installer
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+    env:
+      LIBCLANG_PATH: "C:\\Program Files\\LLVM\\bin"
+      RUST_VERSION: "1.75"
+      FLUTTER_VERSION: "3.24.5"
+      RUSTFLAGS: "-C target-feature=+crt-static"
+
+    steps:
+      # ─────────────────────────────────────────
+      # 1. CHECKOUT
+      # ─────────────────────────────────────────
+      - name: Checkout RustDesk source
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # ─────────────────────────────────────────
+      # 2. TOOLCHAIN
+      # ─────────────────────────────────────────
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install LLVM 15
+        uses: KyleMayes/install-llvm-action@v1
+        with:
+          version: "15.0.6"
+
+      - name: Install Rust ${{ env.RUST_VERSION }}
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install Flutter ${{ env.FLUTTER_VERSION }}
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+
+      # ─────────────────────────────────────────
+      # 3. CACHE (economiza 30-50 min por run)
+      # ─────────────────────────────────────────
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache Cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-
+
+      - name: Cache Flutter pub
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            flutter/.dart_tool
+          key: ${{ runner.os }}-flutter-${{ env.FLUTTER_VERSION }}-${{ hashFiles('flutter/pubspec.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-${{ env.FLUTTER_VERSION }}-
+
+      - name: Cache vcpkg
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/vcpkg_installed
+          key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            ${{ runner.os }}-vcpkg-
+
+      # ─────────────────────────────────────────
+      # 4. DEPENDÊNCIAS NATIVAS (vcpkg)
+      # ─────────────────────────────────────────
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: 120deac3062162151622ca4860575a33844ba10b
+
+      - name: Install native dependencies via vcpkg
+        shell: pwsh
+        run: |
+          $env:VCPKG_DEFAULT_HOST_TRIPLET = "x64-windows-static"
+          & "$env:VCPKG_ROOT\vcpkg.exe" install --triplet x64-windows-static
+
+      # ─────────────────────────────────────────
+      # 5. FLUTTER DEPENDENCIES
+      # ─────────────────────────────────────────
+      - name: Flutter pub get
+        shell: pwsh
+        run: |
+          cd flutter
+          flutter pub get
+
+      # ─────────────────────────────────────────
+      # 6. BUILD (Flutter UI + instalador)
+      # ─────────────────────────────────────────
+      - name: Build RustDesk (Flutter + installer)
+        shell: pwsh
+        run: |
+          python build.py --flutter --hwcodec
+
+      # ─────────────────────────────────────────
+      # 7. VERIFICAR OUTPUT (debug se falhar)
+      # ─────────────────────────────────────────
+      - name: List build output
+        if: always()
+        shell: pwsh
+        run: |
+          Write-Host "=== flutter/build/windows ===" 
+          if (Test-Path "flutter/build/windows") {
+            Get-ChildItem -Recurse "flutter/build/windows" -Include "*.exe","*.msi" | Select-Object FullName
+          } else {
+            Write-Host "Pasta nao encontrada"
+          }
+          Write-Host "=== target/release ===" 
+          if (Test-Path "target/release") {
+            Get-ChildItem "target/release" -Include "*.exe","*.msi" | Select-Object FullName
+          }
+
+      # ─────────────────────────────────────────
+      # 8. UPLOAD ARTEFATOS
+      # ─────────────────────────────────────────
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rustdesk-windows-installer
+          retention-days: 30
+          path: |
+            flutter/build/windows/x64/runner/Release/**
+            target/release/*.exe
+            target/release/*.msi
