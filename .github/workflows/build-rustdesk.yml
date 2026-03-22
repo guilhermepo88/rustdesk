@@ -112,10 +112,10 @@ jobs:
             "name": "rustdesk",
             "version": "0.0.1",
             "dependencies": [
-              { "name": "libvpx",  "triplet": "x64-windows-static" },
-              { "name": "libyuv",  "triplet": "x64-windows-static" },
-              { "name": "opus",    "triplet": "x64-windows-static" },
-              { "name": "openssl", "triplet": "x64-windows-static" }
+              "libvpx",
+              "libyuv",
+              "opus",
+              "openssl"
             ]
           }
           "@ | Set-Content -Path vcpkg.json -Encoding UTF8
